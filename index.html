@@ -1,0 +1,1719 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI大模型批量生成工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        },
+                        secondary: {
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            200: '#ddd6fe',
+                            300: '#c4b5fd',
+                            400: '#a78bfa',
+                            500: '#8b5cf6',
+                            600: '#7c3aed',
+                            700: '#6d28d9',
+                            800: '#5b21b6',
+                            900: '#4c1d95',
+                        },
+                        accent: {
+                            50: '#fff7ed',
+                            100: '#ffedd5',
+                            200: '#fed7aa',
+                            300: '#fdba74',
+                            400: '#fb923c',
+                            500: '#f97316',
+                            600: '#ea580c',
+                            700: '#c2410c',
+                            800: '#9a3412',
+                            900: '#7c2d12',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            transition: all 0.3s ease;
+        }
+        
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(31, 38, 135, 0.2);
+        }
+        
+        .gradient-text {
+            background: linear-gradient(90deg, #0ea5e9, #8b5cf6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        .progress-bar {
+            background: linear-gradient(90deg, #0ea5e9, #8b5cf6);
+            height: 8px;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .status-pending {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status-processing {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .status-completed {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-error {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .tab-button {
+            position: relative;
+            padding: 12px 24px;
+            font-weight: 500;
+            color: #64748b;
+            transition: all 0.3s ease;
+        }
+        
+        .tab-button.active {
+            color: #0ea5e9;
+        }
+        
+        .tab-button.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, #0ea5e9, #8b5cf6);
+            border-radius: 3px;
+        }
+        
+        .model-card {
+            transition: all 0.3s ease;
+        }
+        
+        .model-card:hover {
+            transform: scale(1.02);
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(14, 165, 233, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="mb-8">
+            <div class="glass-card p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-3xl font-bold gradient-text">AI大模型批量生成工具</h1>
+                        <p class="text-gray-600 mt-1">支持多模态输入输出的批量处理平台</p>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center">
+                            <div class="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                            <span class="text-sm text-gray-600">系统状态: 正常</span>
+                        </div>
+                        <button class="bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all">
+                            <i class="fas fa-question-circle mr-2"></i>帮助
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main>
+            <!-- Navigation Tabs -->
+            <div class="glass-card mb-6 overflow-hidden">
+                <div class="flex border-b border-gray-200">
+                    <button class="tab-button active" data-tab="variable-parsing">
+                        <i class="fas fa-code mr-2"></i>变量解析
+                    </button>
+                    <button class="tab-button" data-tab="variable-mapping">
+                        <i class="fas fa-exchange-alt mr-2"></i>变量映射
+                    </button>
+                    <button class="tab-button" data-tab="model-integration">
+                        <i class="fas fa-robot mr-2"></i>模型接入
+                    </button>
+                    <button class="tab-button" data-tab="batch-control">
+                        <i class="fas fa-cogs mr-2"></i>批量控制
+                    </button>
+                    <button class="tab-button" data-tab="results-display">
+                        <i class="fas fa-table mr-2"></i>结果展示
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <!-- Module 1: Variable Parsing -->
+                <div id="variable-parsing" class="tab-pane fade-in">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Prompt Input -->
+                        <div class="glass-card p-6">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-edit text-primary-500 mr-2"></i>输入Prompt模板
+                            </h2>
+                            <div class="mb-4">
+                                <label class="block text-gray-700 text-sm font-medium mb-2">Prompt模板</label>
+                                <textarea id="prompt-template" class="w-full h-64 p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent custom-scrollbar" placeholder="请输入包含{{变量}}的Prompt模板...">我需要你根据我输入的{{日记}}，生成一个评论。请分析{{日记}}中的情感，并提供一些反馈。</textarea>
+                            </div>
+                            <div class="flex justify-between">
+                                <button id="parse-variables" class="bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-6 py-3 rounded-lg shadow-md hover:shadow-lg transition-all">
+                                    <i class="fas fa-search mr-2"></i>解析变量
+                                </button>
+                                <button id="clear-prompt" class="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition-all">
+                                    <i class="fas fa-eraser mr-2"></i>清空
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Parsed Variables -->
+                        <div class="glass-card p-6">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-list-ul text-secondary-500 mr-2"></i>解析结果
+                            </h2>
+                            <div id="parsed-variables" class="space-y-3">
+                                <div class="bg-gray-50 p-4 rounded-lg text-gray-500 text-center">
+                                    <i class="fas fa-info-circle mr-2"></i>请输入Prompt模板并点击"解析变量"按钮
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Module 2: Variable Mapping -->
+                <div id="variable-mapping" class="tab-pane hidden fade-in">
+                    <div class="grid grid-cols-1 gap-6">
+                        <!-- Upload Excel -->
+                        <div class="glass-card p-6">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-file-excel text-green-500 mr-2"></i>上传Excel文件
+                            </h2>
+                            <div class="flex items-center justify-center w-full">
+                                <label id="excel-upload-label" class="flex flex-col w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-all">
+                                    <div class="flex flex-col items-center justify-center pt-7">
+                                        <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-2"></i>
+                                        <p class="text-sm text-gray-500"><span class="font-semibold">点击上传</span> 或拖拽文件到此处</p>
+                                        <p class="text-xs text-gray-400 mt-1">支持 .xlsx, .xls 格式</p>
+                                    </div>
+                                    <input id="excel-upload" type="file" class="hidden" accept=".xlsx, .xls" />
+                                </label>
+                            </div>
+                            <div id="excel-file-info" class="mt-4 hidden">
+                                <div class="flex items-center justify-between bg-green-50 p-3 rounded-lg">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-file-excel text-green-500 mr-2"></i>
+                                        <span id="excel-file-name" class="text-sm font-medium text-gray-700"></span>
+                                    </div>
+                                    <button id="remove-excel" class="text-red-500 hover:text-red-700">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Variable Mapping -->
+                        <div class="glass-card p-6">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-random text-accent-500 mr-2"></i>变量映射
+                            </h2>
+                            <div id="mapping-container" class="space-y-4">
+                                <div class="bg-gray-50 p-4 rounded-lg text-gray-500 text-center">
+                                    <i class="fas fa-info-circle mr-2"></i>请先上传Excel文件并解析Prompt模板中的变量
+                                </div>
+                            </div>
+                            <div class="mt-6 flex justify-end">
+                                <button id="save-mapping" class="bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-6 py-3 rounded-lg shadow-md hover:shadow-lg transition-all hidden">
+                                    <i class="fas fa-save mr-2"></i>保存映射
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Data Preview -->
+                        <div class="glass-card p-6">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-eye text-blue-500 mr-2"></i>数据预览
+                            </h2>
+                            <div id="data-preview" class="overflow-x-auto custom-scrollbar">
+                                <div class="bg-gray-50 p-4 rounded-lg text-gray-500 text-center">
+                                    <i class="fas fa-info-circle mr-2"></i>完成变量映射后将在此显示数据预览
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Module 3: Model Integration -->
+                <div id="model-integration" class="tab-pane hidden fade-in">
+                    <div class="grid grid-cols-1 gap-6">
+                        <!-- Add New Model -->
+                        <div class="glass-card p-6">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-plus-circle text-primary-500 mr-2"></i>添加新模型
+                            </h2>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-gray-700 text-sm font-medium mb-2">模型提供商</label>
+                                    <select id="model-provider" class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                        <option value="deepseek">DeepSeek</option>
+                                        <option value="kimi">Kimi</option>
+                                        <option value="doubao">豆包</option>
+                                        <option value="gemini">Gemini</option>
+                                        <option value="sunoiai">SunoIAI</option>
+                                        <option value="custom">自定义</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 text-sm font-medium mb-2">模型名称</label>
+                                    <input type="text" id="model-name" class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="例如: gpt-4, claude-3-opus">
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 text-sm font-medium mb-2">API密钥</label>
+                                    <input type="password" id="api-key" class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="输入您的API密钥">
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 text-sm font-medium mb-2">API URL</label>
+                                    <input type="text" id="api-url" class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="输入API端点URL">
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 text-sm font-medium mb-2">价格 (每1K tokens)</label>
+                                    <input type="text" id="model-price" class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="例如: $0.01">
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 text-sm font-medium mb-2">最大Tokens</label>
+                                    <input type="number" id="max-tokens" class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="例如: 4096">
+                                </div>
+                            </div>
+                            <div class="mt-6">
+                                <label class="block text-gray-700 text-sm font-medium mb-2">模型描述</label>
+                                <textarea id="model-description" class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent" rows="3" placeholder="输入模型描述信息..."></textarea>
+                            </div>
+                            <div class="mt-6 flex justify-end">
+                                <button id="add-model" class="bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-6 py-3 rounded-lg shadow-md hover:shadow-lg transition-all">
+                                    <i class="fas fa-plus mr-2"></i>添加模型
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Model List -->
+                        <div class="glass-card p-6">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-list text-secondary-500 mr-2"></i>已添加模型
+                            </h2>
+                            <div id="model-list" class="space-y-4">
+                                <div class="bg-gray-50 p-4 rounded-lg text-gray-500 text-center">
+                                    <i class="fas fa-info-circle mr-2"></i>暂无已添加的模型，请添加新模型
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Module 4: Batch Control -->
+                <div id="batch-control" class="tab-pane hidden fade-in">
+                    <div class="grid grid-cols-1 gap-6">
+                        <!-- Batch Settings -->
+                        <div class="glass-card p-6">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-sliders-h text-primary-500 mr-2"></i>批量设置
+                            </h2>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div>
+                                    <label class="block text-gray-700 text-sm font-medium mb-2">起始行</label>
+                                    <input type="number" id="start-row" class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent" min="1" value="1">
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 text-sm font-medium mb-2">结束行</label>
+                                    <input type="number" id="end-row" class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent" min="1" value="10">
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 text-sm font-medium mb-2">并发数</label>
+                                    <input type="number" id="concurrency" class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent" min="1" max="10" value="3">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Model Selection -->
+                        <div class="glass-card p-6">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-check-square text-secondary-500 mr-2"></i>选择模型
+                            </h2>
+                            <div id="model-selection" class="space-y-3">
+                                <div class="bg-gray-50 p-4 rounded-lg text-gray-500 text-center">
+                                    <i class="fas fa-info-circle mr-2"></i>暂无可选模型，请先在"模型接入"模块添加模型
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Control Panel -->
+                        <div class="glass-card p-6">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-play-circle text-accent-500 mr-2"></i>控制面板
+                            </h2>
+                            <div class="flex justify-center space-x-4 mb-6">
+                                <button id="start-generation" class="bg-gradient-to-r from-green-500 to-green-600 text-white px-8 py-3 rounded-lg shadow-md hover:shadow-lg transition-all">
+                                    <i class="fas fa-play mr-2"></i>开始生成
+                                </button>
+                                <button id="pause-generation" class="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-8 py-3 rounded-lg shadow-md hover:shadow-lg transition-all" disabled>
+                                    <i class="fas fa-pause mr-2"></i>暂停
+                                </button>
+                                <button id="stop-generation" class="bg-gradient-to-r from-red-500 to-red-600 text-white px-8 py-3 rounded-lg shadow-md hover:shadow-lg transition-all" disabled>
+                                    <i class="fas fa-stop mr-2"></i>停止
+                                </button>
+                            </div>
+                            
+                            <!-- Progress Bar -->
+                            <div class="mb-6">
+                                <div class="flex justify-between mb-2">
+                                    <span class="text-sm font-medium text-gray-700">进度</span>
+                                    <span id="progress-percentage" class="text-sm font-medium text-gray-700">0%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-4">
+                                    <div id="progress-bar" class="progress-bar rounded-full" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Status Summary -->
+                            <div class="grid grid-cols-4 gap-4 mb-6">
+                                <div class="bg-blue-50 p-4 rounded-lg text-center">
+                                    <div class="text-2xl font-bold text-blue-600" id="total-tasks">0</div>
+                                    <div class="text-sm text-gray-500">总任务</div>
+                                </div>
+                                <div class="bg-green-50 p-4 rounded-lg text-center">
+                                    <div class="text-2xl font-bold text-green-600" id="completed-tasks">0</div>
+                                    <div class="text-sm text-gray-500">已完成</div>
+                                </div>
+                                <div class="bg-yellow-50 p-4 rounded-lg text-center">
+                                    <div class="text-2xl font-bold text-yellow-600" id="pending-tasks">0</div>
+                                    <div class="text-sm text-gray-500">待处理</div>
+                                </div>
+                                <div class="bg-red-50 p-4 rounded-lg text-center">
+                                    <div class="text-2xl font-bold text-red-600" id="failed-tasks">0</div>
+                                    <div class="text-sm text-gray-500">失败</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Task Progress -->
+                        <div class="glass-card p-6">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-tasks text-blue-500 mr-2"></i>任务进度
+                            </h2>
+                            <div id="task-progress" class="overflow-x-auto custom-scrollbar">
+                                <div class="bg-gray-50 p-4 rounded-lg text-gray-500 text-center">
+                                    <i class="fas fa-info-circle mr-2"></i>开始生成后将在此显示任务进度
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Module 5: Results Display -->
+                <div id="results-display" class="tab-pane hidden fade-in">
+                    <div class="grid grid-cols-1 gap-6">
+                        <!-- Results Summary -->
+                        <div class="glass-card p-6">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-chart-bar text-primary-500 mr-2"></i>结果摘要
+                            </h2>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div class="bg-gradient-to-r from-primary-500 to-primary-600 p-6 rounded-xl text-white">
+                                    <div class="text-3xl font-bold" id="total-results">0</div>
+                                    <div class="text-sm opacity-80">总生成结果</div>
+                                </div>
+                                <div class="bg-gradient-to-r from-green-500 to-green-600 p-6 rounded-xl text-white">
+                                    <div class="text-3xl font-bold" id="success-rate">0%</div>
+                                    <div class="text-sm opacity-80">成功率</div>
+                                </div>
+                                <div class="bg-gradient-to-r from-secondary-500 to-secondary-600 p-6 rounded-xl text-white">
+                                    <div class="text-3xl font-bold" id="avg-time">0s</div>
+                                    <div class="text-sm opacity-80">平均响应时间</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Results Table -->
+                        <div class="glass-card p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h2 class="text-xl font-semibold text-gray-800">
+                                    <i class="fas fa-table text-secondary-500 mr-2"></i>生成结果
+                                </h2>
+                                <div class="flex space-x-2">
+                                    <button id="refresh-results" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-all">
+                                        <i class="fas fa-sync-alt mr-2"></i>刷新
+                                    </button>
+                                    <button id="export-results" class="bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all">
+                                        <i class="fas fa-download mr-2"></i>导出
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="results-table" class="overflow-x-auto custom-scrollbar">
+                                <div class="bg-gray-50 p-4 rounded-lg text-gray-500 text-center">
+                                    <i class="fas fa-info-circle mr-2"></i>暂无生成结果，请先在"批量控制"模块开始生成
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="mt-8 text-center text-gray-500 text-sm">
+            <p>© 2023 AI大模型批量生成工具 | 支持多模态输入输出</p>
+        </footer>
+    </div>
+
+    <!-- Modal for Model Details -->
+    <div id="model-detail-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="glass-card max-w-2xl w-full mx-4 p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800">模型详情</h3>
+                <button id="close-modal" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="modal-content">
+                <!-- Content will be dynamically inserted -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+        <div class="flex items-center">
+            <div id="toast-icon" class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mr-3">
+                <i class="fas fa-check text-white"></i>
+            </div>
+            <div>
+                <p id="toast-message" class="text-gray-800 font-medium"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        const state = {
+            parsedVariables: [],
+            excelData: null,
+            excelHeaders: [],
+            variableMapping: {},
+            models: [],
+            selectedModels: [],
+            batchResults: [],
+            isGenerating: false,
+            isPaused: false,
+            currentTaskIndex: 0,
+            totalTasks: 0,
+            completedTasks: 0,
+            failedTasks: 0
+        };
+
+        // DOM Elements
+        const elements = {
+            // Tabs
+            tabButtons: document.querySelectorAll('.tab-button'),
+            tabPanes: document.querySelectorAll('.tab-pane'),
+            
+            // Module 1: Variable Parsing
+            promptTemplate: document.getElementById('prompt-template'),
+            parseVariablesBtn: document.getElementById('parse-variables'),
+            clearPromptBtn: document.getElementById('clear-prompt'),
+            parsedVariablesContainer: document.getElementById('parsed-variables'),
+            
+            // Module 2: Variable Mapping
+            excelUpload: document.getElementById('excel-upload'),
+            excelUploadLabel: document.getElementById('excel-upload-label'),
+            excelFileInfo: document.getElementById('excel-file-info'),
+            excelFileName: document.getElementById('excel-file-name'),
+            removeExcelBtn: document.getElementById('remove-excel'),
+            mappingContainer: document.getElementById('mapping-container'),
+            saveMappingBtn: document.getElementById('save-mapping'),
+            dataPreview: document.getElementById('data-preview'),
+            
+            // Module 3: Model Integration
+            modelProvider: document.getElementById('model-provider'),
+            modelName: document.getElementById('model-name'),
+            apiKey: document.getElementById('api-key'),
+            apiUrl: document.getElementById('api-url'),
+            modelPrice: document.getElementById('model-price'),
+            maxTokens: document.getElementById('max-tokens'),
+            modelDescription: document.getElementById('model-description'),
+            addModelBtn: document.getElementById('add-model'),
+            modelList: document.getElementById('model-list'),
+            
+            // Module 4: Batch Control
+            startRow: document.getElementById('start-row'),
+            endRow: document.getElementById('end-row'),
+            concurrency: document.getElementById('concurrency'),
+            modelSelection: document.getElementById('model-selection'),
+            startGenerationBtn: document.getElementById('start-generation'),
+            pauseGenerationBtn: document.getElementById('pause-generation'),
+            stopGenerationBtn: document.getElementById('stop-generation'),
+            progressBar: document.getElementById('progress-bar'),
+            progressPercentage: document.getElementById('progress-percentage'),
+            totalTasks: document.getElementById('total-tasks'),
+            completedTasks: document.getElementById('completed-tasks'),
+            pendingTasks: document.getElementById('pending-tasks'),
+            failedTasks: document.getElementById('failed-tasks'),
+            taskProgress: document.getElementById('task-progress'),
+            
+            // Module 5: Results Display
+            totalResults: document.getElementById('total-results'),
+            successRate: document.getElementById('success-rate'),
+            avgTime: document.getElementById('avg-time'),
+            resultsTable: document.getElementById('results-table'),
+            refreshResultsBtn: document.getElementById('refresh-results'),
+            exportResultsBtn: document.getElementById('export-results'),
+            
+            // Modal
+            modelDetailModal: document.getElementById('model-detail-modal'),
+            closeModalBtn: document.getElementById('close-modal'),
+            modalContent: document.getElementById('modal-content'),
+            
+            // Toast
+            toast: document.getElementById('toast'),
+            toastIcon: document.getElementById('toast-icon'),
+            toastMessage: document.getElementById('toast-message')
+        };
+
+        // Utility Functions
+        function showToast(message, type = 'success') {
+            elements.toastMessage.textContent = message;
+            
+            // Set icon and color based on type
+            if (type === 'success') {
+                elements.toastIcon.className = 'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mr-3 bg-green-500';
+                elements.toastIcon.innerHTML = '<i class="fas fa-check text-white"></i>';
+            } else if (type === 'error') {
+                elements.toastIcon.className = 'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mr-3 bg-red-500';
+                elements.toastIcon.innerHTML = '<i class="fas fa-times text-white"></i>';
+            } else if (type === 'warning') {
+                elements.toastIcon.className = 'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mr-3 bg-yellow-500';
+                elements.toastIcon.innerHTML = '<i class="fas fa-exclamation text-white"></i>';
+            } else if (type === 'info') {
+                elements.toastIcon.className = 'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mr-3 bg-blue-500';
+                elements.toastIcon.innerHTML = '<i class="fas fa-info text-white"></i>';
+            }
+            
+            // Show toast
+            elements.toast.classList.remove('translate-y-20', 'opacity-0');
+            elements.toast.classList.add('translate-y-0', 'opacity-100');
+            
+            // Hide toast after 3 seconds
+            setTimeout(() => {
+                elements.toast.classList.remove('translate-y-0', 'opacity-100');
+                elements.toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        function parsePromptVariables(prompt) {
+            const regex = /\{\{([^}]+)\}\}/g;
+            const variables = [];
+            let match;
+            
+            while ((match = regex.exec(prompt)) !== null) {
+                if (!variables.includes(match[1])) {
+                    variables.push(match[1]);
+                }
+            }
+            
+            return variables;
+        }
+
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        // Tab Navigation
+        elements.tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove active class from all buttons
+                elements.tabButtons.forEach(btn => btn.classList.remove('active'));
+                
+                // Add active class to clicked button
+                button.classList.add('active');
+                
+                // Hide all tab panes
+                elements.tabPanes.forEach(pane => pane.classList.add('hidden'));
+                
+                // Show selected tab pane
+                const tabId = button.getAttribute('data-tab');
+                document.getElementById(tabId).classList.remove('hidden');
+                
+                // Refresh results when switching to results display
+                if (tabId === 'results-display') {
+                    updateResultsDisplay();
+                }
+                
+                // Update model selection when switching to batch control
+                if (tabId === 'batch-control') {
+                    updateModelSelection();
+                }
+            });
+        });
+
+        // Module 1: Variable Parsing
+        elements.parseVariablesBtn.addEventListener('click', () => {
+            const prompt = elements.promptTemplate.value.trim();
+            
+            if (!prompt) {
+                showToast('请输入Prompt模板', 'warning');
+                return;
+            }
+            
+            state.parsedVariables = parsePromptVariables(prompt);
+            
+            if (state.parsedVariables.length === 0) {
+                elements.parsedVariablesContainer.innerHTML = `
+                    <div class="bg-yellow-50 p-4 rounded-lg text-yellow-700">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>未找到变量，请使用{{变量名}}格式定义变量
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-3">';
+            state.parsedVariables.forEach(variable => {
+                html += `
+                    <div class="bg-gradient-to-r from-primary-50 to-secondary-50 p-3 rounded-lg flex items-center">
+                        <div class="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center mr-3">
+                            <i class="fas fa-code text-primary-600"></i>
+                        </div>
+                        <div>
+                            <div class="text-sm font-medium text-gray-800">{{${variable}}}</div>
+                            <div class="text-xs text-gray-500">变量</div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            elements.parsedVariablesContainer.innerHTML = html;
+            showToast(`成功解析 ${state.parsedVariables.length} 个变量`, 'success');
+            
+            // Update mapping container if Excel data is available
+            if (state.excelData) {
+                updateMappingContainer();
+            }
+        });
+
+        elements.clearPromptBtn.addEventListener('click', () => {
+            elements.promptTemplate.value = '';
+            state.parsedVariables = [];
+            elements.parsedVariablesContainer.innerHTML = `
+                <div class="bg-gray-50 p-4 rounded-lg text-gray-500 text-center">
+                    <i class="fas fa-info-circle mr-2"></i>请输入Prompt模板并点击"解析变量"按钮
+                </div>
+            `;
+            showToast('已清空Prompt模板', 'info');
+        });
+
+        // Module 2: Variable Mapping
+        elements.excelUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            // Show file info
+            elements.excelFileName.textContent = file.name;
+            elements.excelFileInfo.classList.remove('hidden');
+            
+            // Parse Excel file
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    // In a real application, we would use a library like SheetJS
+                    // For this demo, we'll simulate parsing the Excel file
+                    simulateExcelParsing(file.name);
+                } catch (error) {
+                    showToast('Excel文件解析失败: ' + error.message, 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        elements.removeExcelBtn.addEventListener('click', () => {
+            elements.excelUpload.value = '';
+            elements.excelFileInfo.classList.add('hidden');
+            state.excelData = null;
+            state.excelHeaders = [];
+            elements.mappingContainer.innerHTML = `
+                <div class="bg-gray-50 p-4 rounded-lg text-gray-500 text-center">
+                    <i class="fas fa-info-circle mr-2"></i>请先上传Excel文件并解析Prompt模板中的变量
+                </div>
+            `;
+            elements.dataPreview.innerHTML = `
+                <div class="bg-gray-50 p-4 rounded-lg text-gray-500 text-center">
+                    <i class="fas fa-info-circle mr-2"></i>完成变量映射后将在此显示数据预览
+                </div>
+            `;
+            elements.saveMappingBtn.classList.add('hidden');
+            showToast('已移除Excel文件', 'info');
+        });
+
+        function simulateExcelParsing(fileName) {
+            // Simulate Excel parsing with mock data
+            // In a real application, this would use SheetJS or similar library
+            
+            // Generate mock headers based on file name
+            state.excelHeaders = ['日记', '吐槽', '心情', '日期', '用户ID'];
+            
+            // Generate mock data
+            state.excelData = [];
+            for (let i = 1; i <= 50; i++) {
+                state.excelData.push({
+                    '日记': `这是第${i}篇日记内容，记录了今天的生活和感受...`,
+                    '吐槽': `这是第${i}条吐槽，对某些事情的不满和抱怨...`,
+                    '心情': i % 3 === 0 ? '开心' : (i % 3 === 1 ? '平静' : '低落'),
+                    '日期': `2023-${String(Math.floor(i / 30) + 1).padStart(2, '0')}-${String(i % 30 + 1).padStart(2, '0')}`,
+                    '用户ID': `user_${1000 + i}`
+                });
+            }
+            
+            showToast(`成功解析Excel文件，共${state.excelData.length}行数据`, 'success');
+            
+            // Update mapping container if variables are parsed
+            if (state.parsedVariables.length > 0) {
+                updateMappingContainer();
+            }
+        }
+
+        function updateMappingContainer() {
+            if (state.parsedVariables.length === 0 || state.excelHeaders.length === 0) {
+                elements.mappingContainer.innerHTML = `
+                    <div class="bg-gray-50 p-4 rounded-lg text-gray-500 text-center">
+                        <i class="fas fa-info-circle mr-2"></i>请先上传Excel文件并解析Prompt模板中的变量
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '<div class="space-y-4">';
+            state.parsedVariables.forEach(variable => {
+                html += `
+                    <div class="flex items-center space-x-4">
+                        <div class="w-1/3">
+                            <div class="bg-primary-50 p-3 rounded-lg text-center">
+                                <span class="font-medium text-primary-700">{{${variable}}}</span>
+                            </div>
+                        </div>
+                        <div class="w-1/6 text-center">
+                            <i class="fas fa-arrow-right text-gray-400"></i>
+                        </div>
+                        <div class="w-1/2">
+                            <select class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent mapping-select" data-variable="${variable}">
+                                <option value="">-- 选择Excel列 --</option>
+                                ${state.excelHeaders.map(header => `<option value="${header}">${header}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            elements.mappingContainer.innerHTML = html;
+            elements.saveMappingBtn.classList.remove('hidden');
+            
+            // Add event listeners to mapping selects
+            document.querySelectorAll('.mapping-select').forEach(select => {
+                select.addEventListener('change', (e) => {
+                    const variable = e.target.getAttribute('data-variable');
+                    const column = e.target.value;
+                    
+                    if (column) {
+                        state.variableMapping[variable] = column;
+                    } else {
+                        delete state.variableMapping[variable];
+                    }
+                });
+            });
+        }
+
+        elements.saveMappingBtn.addEventListener('click', () => {
+            // Check if all variables are mapped
+            const unmappedVariables = state.parsedVariables.filter(v => !state.variableMapping[v]);
+            
+            if (unmappedVariables.length > 0) {
+                showToast(`以下变量未映射: ${unmappedVariables.map(v => `{{${v}}}`).join(', ')}`, 'warning');
+                return;
+            }
+            
+            // Update data preview
+            updateDataPreview();
+            showToast('变量映射保存成功', 'success');
+        });
+
+        function updateDataPreview() {
+            if (!state.excelData || Object.keys(state.variableMapping).length === 0) {
+                elements.dataPreview.innerHTML = `
+                    <div class="bg-gray-50 p-4 rounded-lg text-gray-500 text-center">
+                        <i class="fas fa-info-circle mr-2"></i>完成变量映射后将在此显示数据预览
+                    </div>
+                `;
+                return;
+            }
+            
+            // Show first 5 rows of mapped data
+            const previewData = state.excelData.slice(0, 5);
+            
+            let html = `
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">行号</th>
+                            ${state.parsedVariables.map(v => `
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    {{${v}}} → ${state.variableMapping[v]}
+                                </th>
+                            `).join('')}
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+            `;
+            
+            previewData.forEach((row, index) => {
+                html += `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${index + 1}</td>
+                        ${state.parsedVariables.map(v => {
+                            const column = state.variableMapping[v];
+                            const value = row[column] || '';
+                            return `
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    ${value.length > 50 ? value.substring(0, 50) + '...' : value}
+                                </td>
+                            `;
+                        }).join('')}
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+            `;
+            
+            elements.dataPreview.innerHTML = html;
+            
+            // Update end row in batch control
+            elements.endRow.value = Math.min(10, state.excelData.length);
+            elements.endRow.max = state.excelData.length;
+        }
+
+        // Module 3: Model Integration
+        elements.addModelBtn.addEventListener('click', () => {
+            const provider = elements.modelProvider.value;
+            const name = elements.modelName.value.trim();
+            const apiKey = elements.apiKey.value.trim();
+            const apiUrl = elements.apiUrl.value.trim();
+            const price = elements.modelPrice.value.trim();
+            const maxTokens = elements.maxTokens.value.trim();
+            const description = elements.modelDescription.value.trim();
+            
+            if (!name) {
+                showToast('请输入模型名称', 'warning');
+                return;
+            }
+            
+            if (!apiKey) {
+                showToast('请输入API密钥', 'warning');
+                return;
+            }
+            
+            // Create model object
+            const model = {
+                id: generateUUID(),
+                provider,
+                name,
+                apiKey,
+                apiUrl: apiUrl || getDefaultApiUrl(provider),
+                price: price || '未知',
+                maxTokens: maxTokens || 4096,
+                description: description || `${provider} - ${name}`,
+                createdAt: new Date().toISOString()
+            };
+            
+            // Add to state
+            state.models.push(model);
+            
+            // Update model list
+            updateModelList();
+            
+            // Clear form
+            elements.modelName.value = '';
+            elements.apiKey.value = '';
+            elements.apiUrl.value = '';
+            elements.modelPrice.value = '';
+            elements.maxTokens.value = '';
+            elements.modelDescription.value = '';
+            
+            showToast(`模型 ${name} 添加成功`, 'success');
+        });
+
+        function getDefaultApiUrl(provider) {
+            const urls = {
+                'deepseek': 'https://api.deepseek.com/v1/chat/completions',
+                'kimi': 'https://api.moonshot.cn/v1/chat/completions',
+                'doubao': 'https://api.doubao.com/v1/chat/completions',
+                'gemini': 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
+                'sunoiai': 'https://api.sunoiai.com/v1/chat/completions',
+                'custom': ''
+            };
+            
+            return urls[provider] || '';
+        }
+
+        function updateModelList() {
+            if (state.models.length === 0) {
+                elements.modelList.innerHTML = `
+                    <div class="bg-gray-50 p-4 rounded-lg text-gray-500 text-center">
+                        <i class="fas fa-info-circle mr-2"></i>暂无已添加的模型，请添加新模型
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            state.models.forEach(model => {
+                const providerColors = {
+                    'deepseek': 'bg-blue-100 text-blue-800',
+                    'kimi': 'bg-purple-100 text-purple-800',
+                    'doubao': 'bg-green-100 text-green-800',
+                    'gemini': 'bg-yellow-100 text-yellow-800',
+                    'sunoiai': 'bg-red-100 text-red-800',
+                    'custom': 'bg-gray-100 text-gray-800'
+                };
+                
+                html += `
+                    <div class="model-card bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="flex items-center mb-2">
+                                    <span class="text-lg font-semibold text-gray-800 mr-2">${model.name}</span>
+                                    <span class="text-xs px-2 py-1 rounded-full ${providerColors[model.provider]}">${model.provider}</span>
+                                </div>
+                                <div class="text-sm text-gray-500 mb-1">
+                                    <i class="fas fa-key mr-1"></i>API密钥: ${model.apiKey.substring(0, 4)}...${model.apiKey.substring(model.apiKey.length - 4)}
+                                </div>
+                                <div class="text-sm text-gray-500 mb-1">
+                                    <i class="fas fa-link mr-1"></i>API URL: ${model.apiUrl.length > 40 ? model.apiUrl.substring(0, 40) + '...' : model.apiUrl}
+                                </div>
+                                <div class="text-sm text-gray-500">
+                                    <i class="fas fa-coins mr-1"></i>价格: ${model.price} | 最大Tokens: ${model.maxTokens}
+                                </div>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button class="view-model-btn text-blue-500 hover:text-blue-700" data-id="${model.id}">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="delete-model-btn text-red-500 hover:text-red-700" data-id="${model.id}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            elements.modelList.innerHTML = html;
+            
+            // Add event listeners to view and delete buttons
+            document.querySelectorAll('.view-model-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const modelId = e.currentTarget.getAttribute('data-id');
+                    showModelDetails(modelId);
+                });
+            });
+            
+            document.querySelectorAll('.delete-model-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const modelId = e.currentTarget.getAttribute('data-id');
+                    deleteModel(modelId);
+                });
+            });
+        }
+
+        function showModelDetails(modelId) {
+            const model = state.models.find(m => m.id === modelId);
+            if (!model) return;
+            
+            elements.modalContent.innerHTML = `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-gray-700 text-sm font-medium mb-1">模型名称</label>
+                            <div class="p-2 bg-gray-50 rounded-lg">${model.name}</div>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-medium mb-1">提供商</label>
+                            <div class="p-2 bg-gray-50 rounded-lg">${model.provider}</div>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-medium mb-1">API密钥</label>
+                            <div class="p-2 bg-gray-50 rounded-lg">${model.apiKey}</div>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-medium mb-1">API URL</label>
+                            <div class="p-2 bg-gray-50 rounded-lg break-all">${model.apiUrl}</div>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-medium mb-1">价格</label>
+                            <div class="p-2 bg-gray-50 rounded-lg">${model.price}</div>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-medium mb-1">最大Tokens</label>
+                            <div class="p-2 bg-gray-50 rounded-lg">${model.maxTokens}</div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-1">描述</label>
+                        <div class="p-2 bg-gray-50 rounded-lg">${model.description}</div>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-1">创建时间</label>
+                        <div class="p-2 bg-gray-50 rounded-lg">${new Date(model.createdAt).toLocaleString()}</div>
+                    </div>
+                </div>
+            `;
+            
+            elements.modelDetailModal.classList.remove('hidden');
+        }
+
+        function deleteModel(modelId) {
+            // Confirm deletion
+            if (!confirm('确定要删除此模型吗？')) return;
+            
+            // Remove from state
+            state.models = state.models.filter(m => m.id !== modelId);
+            
+            // Update model list
+            updateModelList();
+            
+            showToast('模型已删除', 'success');
+        }
+
+        elements.closeModalBtn.addEventListener('click', () => {
+            elements.modelDetailModal.classList.add('hidden');
+        });
+
+        // Module 4: Batch Control
+        function updateModelSelection() {
+            if (state.models.length === 0) {
+                elements.modelSelection.innerHTML = `
+                    <div class="bg-gray-50 p-4 rounded-lg text-gray-500 text-center">
+                        <i class="fas fa-info-circle mr-2"></i>暂无可选模型，请先在"模型接入"模块添加模型
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            state.models.forEach(model => {
+                html += `
+                    <div class="flex items-center p-3 bg-white border border-gray-200 rounded-lg">
+                        <input type="checkbox" class="model-checkbox w-5 h-5 text-primary-600 rounded focus:ring-primary-500" data-id="${model.id}">
+                        <div class="ml-3">
+                            <div class="text-sm font-medium text-gray-800">${model.name}</div>
+                            <div class="text-xs text-gray-500">${model.provider} | ${model.price}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            elements.modelSelection.innerHTML = html;
+            
+            // Add event listeners to checkboxes
+            document.querySelectorAll('.model-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', (e) => {
+                    const modelId = e.target.getAttribute('data-id');
+                    
+                    if (e.target.checked) {
+                        if (!state.selectedModels.includes(modelId)) {
+                            state.selectedModels.push(modelId);
+                        }
+                    } else {
+                        state.selectedModels = state.selectedModels.filter(id => id !== modelId);
+                    }
+                });
+            });
+        }
+
+        elements.startGenerationBtn.addEventListener('click', () => {
+            // Validate inputs
+            if (!state.excelData || state.excelData.length === 0) {
+                showToast('请先上传Excel文件', 'warning');
+                return;
+            }
+            
+            if (Object.keys(state.variableMapping).length === 0) {
+                showToast('请先完成变量映射', 'warning');
+                return;
+            }
+            
+            if (state.selectedModels.length === 0) {
+                showToast('请至少选择一个模型', 'warning');
+                return;
+            }
+            
+            const startRow = parseInt(elements.startRow.value);
+            const endRow = parseInt(elements.endRow.value);
+            
+            if (startRow < 1 || endRow > state.excelData.length || startRow > endRow) {
+                showToast('请输入有效的行范围', 'warning');
+                return;
+            }
+            
+            // Initialize batch generation
+            initializeBatchGeneration(startRow, endRow);
+        });
+
+        elements.pauseGenerationBtn.addEventListener('click', () => {
+            if (state.isGenerating) {
+                state.isPaused = true;
+                elements.pauseGenerationBtn.innerHTML = '<i class="fas fa-play mr-2"></i>继续';
+                elements.pauseGenerationBtn.classList.remove('from-yellow-500', 'to-yellow-600');
+                elements.pauseGenerationBtn.classList.add('from-green-500', 'to-green-600');
+                showToast('生成已暂停', 'info');
+            } else if (state.isPaused) {
+                state.isPaused = false;
+                elements.pauseGenerationBtn.innerHTML = '<i class="fas fa-pause mr-2"></i>暂停';
+                elements.pauseGenerationBtn.classList.remove('from-green-500', 'to-green-600');
+                elements.pauseGenerationBtn.classList.add('from-yellow-500', 'to-yellow-600');
+                showToast('生成已继续', 'info');
+                processNextTask();
+            }
+        });
+
+        elements.stopGenerationBtn.addEventListener('click', () => {
+            if (confirm('确定要停止生成吗？已生成的结果将被保留。')) {
+                state.isGenerating = false;
+                state.isPaused = false;
+                
+                // Update UI
+                elements.startGenerationBtn.disabled = false;
+                elements.pauseGenerationBtn.disabled = true;
+                elements.stopGenerationBtn.disabled = true;
+                
+                elements.pauseGenerationBtn.innerHTML = '<i class="fas fa-pause mr-2"></i>暂停';
+                elements.pauseGenerationBtn.classList.remove('from-green-500', 'to-green-600');
+                elements.pauseGenerationBtn.classList.add('from-yellow-500', 'to-yellow-600');
+                
+                showToast('生成已停止', 'info');
+            }
+        });
+
+        function initializeBatchGeneration(startRow, endRow) {
+            // Reset state
+            state.isGenerating = true;
+            state.isPaused = false;
+            state.currentTaskIndex = 0;
+            state.totalTasks = (endRow - startRow + 1) * state.selectedModels.length;
+            state.completedTasks = 0;
+            state.failedTasks = 0;
+            state.batchResults = [];
+            
+            // Update UI
+            elements.startGenerationBtn.disabled = true;
+            elements.pauseGenerationBtn.disabled = false;
+            elements.stopGenerationBtn.disabled = false;
+            
+            // Update progress display
+            elements.totalTasks.textContent = state.totalTasks;
+            elements.completedTasks.textContent = '0';
+            elements.pendingTasks.textContent = state.totalTasks;
+            elements.failedTasks.textContent = '0';
+            
+            // Initialize task progress table
+            initializeTaskProgressTable(startRow, endRow);
+            
+            // Start processing
+            processNextTask();
+            
+            showToast('批量生成已开始', 'success');
+        }
+
+        function initializeTaskProgressTable(startRow, endRow) {
+            let html = `
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">行号</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">输入数据</th>
+                            ${state.selectedModels.map(modelId => {
+                                const model = state.models.find(m => m.id === modelId);
+                                return `<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">${model.name}</th>`;
+                            }).join('')}
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200" id="task-progress-body">
+            `;
+            
+            for (let i = startRow - 1; i < endRow; i++) {
+                const row = state.excelData[i];
+                const inputPreview = state.parsedVariables.map(v => {
+                    const column = state.variableMapping[v];
+                    const value = row[column] || '';
+                    return `{{${v}}}: ${value.length > 20 ? value.substring(0, 20) + '...' : value}`;
+                }).join(', ');
+                
+                html += `
+                    <tr data-row="${i}">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${i + 1}</td>
+                        <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">${inputPreview}</td>
+                        ${state.selectedModels.map(modelId => {
+                            return `<td class="px-6 py-4 whitespace-nowrap text-sm" data-model="${modelId}">
+                                <span class="status-badge status-pending">待处理</span>
+                            </td>`;
+                        }).join('')}
+                    </tr>
+                `;
+            }
+            
+            html += `
+                    </tbody>
+                </table>
+            `;
+            
+            elements.taskProgress.innerHTML = html;
+        }
+
+        function processNextTask() {
+            if (!state.isGenerating || state.isPaused) return;
+            
+            // Calculate current row and model
+            const startRow = parseInt(elements.startRow.value) - 1;
+            const endRow = parseInt(elements.endRow.value) - 1;
+            const totalRows = endRow - startRow + 1;
+            
+            const currentModelIndex = Math.floor(state.currentTaskIndex / totalRows);
+            const currentRowIndex = startRow + (state.currentTaskIndex % totalRows);
+            
+            // Check if we've processed all tasks
+            if (currentModelIndex >= state.selectedModels.length) {
+                finishBatchGeneration();
+                return;
+            }
+            
+            const currentModelId = state.selectedModels[currentModelIndex];
+            const currentModel = state.models.find(m => m.id === currentModelId);
+            const currentRow = state.excelData[currentRowIndex];
+            
+            // Update task status in UI
+            const taskCell = document.querySelector(`tr[data-row="${currentRowIndex}"] td[data-model="${currentModelId}"]`);
+            if (taskCell) {
+                taskCell.innerHTML = '<span class="status-badge status-processing">处理中</span>';
+            }
+            
+            // Simulate API call
+            simulateApiCall(currentModel, currentRow, currentRowIndex)
+                .then(result => {
+                    // Update task status in UI
+                    if (taskCell) {
+                        taskCell.innerHTML = '<span class="status-badge status-completed">已完成</span>';
+                    }
+                    
+                    // Add result to batch results
+                    state.batchResults.push({
+                        rowIndex: currentRowIndex,
+                        modelId: currentModelId,
+                        modelName: currentModel.name,
+                        input: currentRow,
+                        output: result,
+                        status: 'success',
+                        timestamp: new Date().toISOString()
+                    });
+                    
+                    // Update counters
+                    state.completedTasks++;
+                    elements.completedTasks.textContent = state.completedTasks;
+                    elements.pendingTasks.textContent = state.totalTasks - state.completedTasks - state.failedTasks;
+                    
+                    // Update progress bar
+                    const progress = Math.round((state.completedTasks + state.failedTasks) / state.totalTasks * 100);
+                    elements.progressBar.style.width = `${progress}%`;
+                    elements.progressPercentage.textContent = `${progress}%`;
+                    
+                    // Process next task
+                    state.currentTaskIndex++;
+                    setTimeout(processNextTask, 500); // Small delay between tasks
+                })
+                .catch(error => {
+                    // Update task status in UI
+                    if (taskCell) {
+                        taskCell.innerHTML = '<span class="status-badge status-error">失败</span>';
+                    }
+                    
+                    // Add error to batch results
+                    state.batchResults.push({
+                        rowIndex: currentRowIndex,
+                        modelId: currentModelId,
+                        modelName: currentModel.name,
+                        input: currentRow,
+                        error: error.message,
+                        status: 'error',
+                        timestamp: new Date().toISOString()
+                    });
+                    
+                    // Update counters
+                    state.failedTasks++;
+                    elements.failedTasks.textContent = state.failedTasks;
+                    elements.pendingTasks.textContent = state.totalTasks - state.completedTasks - state.failedTasks;
+                    
+                    // Update progress bar
+                    const progress = Math.round((state.completedTasks + state.failedTasks) / state.totalTasks * 100);
+                    elements.progressBar.style.width = `${progress}%`;
+                    elements.progressPercentage.textContent = `${progress}%`;
+                    
+                    // Process next task
+                    state.currentTaskIndex++;
+                    setTimeout(processNextTask, 500); // Small delay between tasks
+                });
+        }
+
+        function simulateApiCall(model, rowData, rowIndex) {
+            return new Promise((resolve, reject) => {
+                // Simulate API call delay
+                const delay = 1000 + Math.random() * 2000;
+                
+                setTimeout(() => {
+                    // Simulate success (90% chance) or failure (10% chance)
+                    if (Math.random() < 0.9) {
+                        // Generate mock response based on model type
+                        let response = '';
+                        
+                        if (model.provider === 'gemini') {
+                            response = `这是${model.name}对第${rowIndex + 1}行数据的分析结果。根据输入的日记内容，我分析出作者的情感状态为积极，建议继续保持良好的心态。`;
+                        } else if (model.provider === 'sunoiai') {
+                            response = `[音乐生成结果] 基于第${rowIndex + 1}行数据生成的音乐片段，时长约30秒，风格为轻快的流行音乐。`;
+                        } else {
+                            response = `这是${model.name}对第${rowIndex + 1}行数据的分析结果。根据输入内容，我生成了以下评论：\n\n这篇日记记录了作者的真实感受，表达清晰，情感真挚。建议在未来的写作中可以更加注重细节描写，让读者更能感同身受。`;
+                        }
+                        
+                        resolve(response);
+                    } else {
+                        reject(new Error('API调用失败：模拟错误'));
+                    }
+                }, delay);
+            });
+        }
+
+        function finishBatchGeneration() {
+            state.isGenerating = false;
+            
+            // Update UI
+            elements.startGenerationBtn.disabled = false;
+            elements.pauseGenerationBtn.disabled = true;
+            elements.stopGenerationBtn.disabled = true;
+            
+            showToast('批量生成已完成', 'success');
+            
+            // Update results display
+            updateResultsDisplay();
+        }
+
+        // Module 5: Results Display
+        function updateResultsDisplay() {
+            if (state.batchResults.length === 0) {
+                elements.resultsTable.innerHTML = `
+                    <div class="bg-gray-50 p-4 rounded-lg text-gray-500 text-center">
+                        <i class="fas fa-info-circle mr-2"></i>暂无生成结果，请先在"批量控制"模块开始生成
+                    </div>
+                `;
+                
+                elements.totalResults.textContent = '0';
+                elements.successRate.textContent = '0%';
+                elements.avgTime.textContent = '0s';
+                
+                return;
+            }
+            
+            // Calculate statistics
+            const totalResults = state.batchResults.length;
+            const successCount = state.batchResults.filter(r => r.status === 'success').length;
+            const successRate = Math.round(successCount / totalResults * 100);
+            
+            // Calculate average response time (simulated)
+            const avgTime = (1.5 + Math.random()).toFixed(1);
+            
+            // Update statistics
+            elements.totalResults.textContent = totalResults;
+            elements.successRate.textContent = `${successRate}%`;
+            elements.avgTime.textContent = `${avgTime}s`;
+            
+            // Group results by row index
+            const groupedResults = {};
+            state.batchResults.forEach(result => {
+                if (!groupedResults[result.rowIndex]) {
+                    groupedResults[result.rowIndex] = {
+                        input: result.input,
+                        outputs: {}
+                    };
+                }
+                
+                groupedResults[result.rowIndex].outputs[result.modelId] = {
+                    modelName: result.modelName,
+                    output: result.output || result.error,
+                    status: result.status
+                };
+            });
+            
+            // Generate table HTML
+            let html = `
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">行号</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">输入数据</th>
+                            ${state.selectedModels.map(modelId => {
+                                const model = state.models.find(m => m.id === modelId);
+                                return `<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">${model.name}</th>`;
+                            }).join('')}
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+            `;
+            
+            Object.keys(groupedResults).sort((a, b) => parseInt(a) - parseInt(b)).forEach(rowIndex => {
+                const row = groupedResults[rowIndex];
+                const inputPreview = state.parsedVariables.map(v => {
+                    const column = state.variableMapping[v];
+                    const value = row.input[column] || '';
+                    return `{{${v}}}: ${value.length > 20 ? value.substring(0, 20) + '...' : value}`;
+                }).join(', ');
+                
+                html += `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${parseInt(rowIndex) + 1}</td>
+                        <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">${inputPreview}</td>
+                        ${state.selectedModels.map(modelId => {
+                            const output = row.outputs[modelId];
+                            if (!output) {
+                                return `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">-</td>`;
+                            }
+                            
+                            const statusClass = output.status === 'success' ? 'text-green-600' : 'text-red-600';
+                            const outputPreview = output.output.length > 50 ? output.output.substring(0, 50) + '...' : output.output;
+                            
+                            return `
+                                <td class="px-6 py-4 text-sm ${statusClass} max-w-xs truncate">
+                                    <div class="tooltip">
+                                        ${outputPreview}
+                                        <span class="tooltip-text bg-gray-800 text-white p-2 rounded absolute z-50 hidden">
+                                            ${output.output}
+                                        </span>
+                                    </div>
+                                </td>
+                            `;
+                        }).join('')}
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+            `;
+            
+            elements.resultsTable.innerHTML = html;
+            
+            // Add tooltip functionality
+            document.querySelectorAll('.tooltip').forEach(tooltip => {
+                tooltip.addEventListener('mouseenter', () => {
+                    const tooltipText = tooltip.querySelector('.tooltip-text');
+                    if (tooltipText) {
+                        tooltipText.classList.remove('hidden');
+                    }
+                });
+                
+                tooltip.addEventListener('mouseleave', () => {
+                    const tooltipText = tooltip.querySelector('.tooltip-text');
+                    if (tooltipText) {
+                        tooltipText.classList.add('hidden');
+                    }
+                });
+            });
+        }
+
+        elements.refreshResultsBtn.addEventListener('click', () => {
+            updateResultsDisplay();
+            showToast('结果已刷新', 'info');
+        });
+
+        elements.exportResultsBtn.addEventListener('click', () => {
+            if (state.batchResults.length === 0) {
+                showToast('没有可导出的结果', 'warning');
+                return;
+            }
+            
+            // In a real application, this would generate an Excel file
+            // For this demo, we'll simulate the export
+            showToast('结果导出成功', 'success');
+            
+            // Simulate download
+            setTimeout(() => {
+                const data = JSON.stringify(state.batchResults, null, 2);
+                const blob = new Blob([data], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'batch_results.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 1000);
+        });
+
+        // Initialize the application
+        function init() {
+            // Add some sample models for demonstration
+            state.models = [
+                {
+                    id: generateUUID(),
+                    provider: 'deepseek',
+                    name: 'DeepSeek Chat',
+                    apiKey: 'sk-1234567890abcdef',
+                    apiUrl: 'https://api.deepseek.com/v1/chat/completions',
+                    price: '$0.001/1K tokens',
+                    maxTokens: 4096,
+                    description: 'DeepSeek通用对话模型',
+                    createdAt: new Date().toISOString()
+                },
+                {
+                    id: generateUUID(),
+                    provider: 'gemini',
+                    name: 'Gemini Pro',
+                    apiKey: 'AIza-1234567890abcdef',
+                    apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
+                    price: '$0.002/1K tokens',
+                    maxTokens: 8192,
+                    description: 'Google Gemini Pro模型',
+                    createdAt: new Date().toISOString()
+                }
+            ];
+            
+            // Update model list
+            updateModelList();
+            
+            // Update model selection
+            updateModelSelection();
+            
+            // Add event listener for model provider change
+            elements.modelProvider.addEventListener('change', (e) => {
+                const provider = e.target.value;
+                elements.apiUrl.value = getDefaultApiUrl(provider);
+                
+                // Set default model name based on provider
+                const defaultNames = {
+                    'deepseek': 'deepseek-chat',
+                    'kimi': 'moonshot-v1-8k',
+                    'doubao': 'doubao-pro-32k',
+                    'gemini': 'gemini-pro',
+                    'sunoiai': 'sunoiai-chat',
+                    'custom': ''
+                };
+                
+                elements.modelName.value = defaultNames[provider] || '';
+            });
+        }
+
+        // Initialize the application when the DOM is loaded
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
